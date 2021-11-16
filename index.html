@@ -1,0 +1,98 @@
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.3/jquery.min.js"></script>
+<script>
+(async ($) => {
+    const fetchLinkToken = async () => {
+        const response = await fetch('/create-link-token');
+        const { linkToken } = await response.json();
+        return linkToken;
+    };
+
+    const handler = Plaid.create({
+        token: await fetchLinkToken(),
+        onSuccess: async (publicToken, metadata) => {
+            console.log(publicToken);
+            console.log(metadata);
+
+            const { account_id: accountId } = metadata;
+
+            const response = await fetch('/token-exchange', {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    publicToken,
+                    accountId,
+                }),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            const { accessToken } = await response.json();
+            document.getElementById('access-token').innerHTML = `Access Token: ${accessToken}`
+            document.getElementById('account-id').innerHTML = `Account ID: ${accountId}`
+        },
+         onEvent: (metadata) => {
+            console.log(metadata);
+        },
+        onExit: (error, metadata) => {
+            console.log(error, metadata);
+        },
+    });
+
+    const authorizeTransaction = async () => {
+        const amount = document.getElementById('amount').value;
+        const response = await fetch('/authorize-transfer', {
+                method: 'POST',
+                body: JSON.stringify({ 
+                amount,
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const { authorizationId, decision, decisionRationale } = await response.json();
+        
+        document.getElementById('authorization-id').innerHTML = `Authorization ID: ${authorizationId}`;
+        document.getElementById('decision').innerHTML = `Decision: ${decision}`;
+        document.getElementById('decision-rationale').innerHTML = `Decision Rationale: ${decisionRationale}`;
+    };
+
+    const createTransaction = async () => {
+        const amount = document.getElementById('amount').value;
+        const response = await fetch('/create-transfer', {
+                method: 'POST',
+                body: JSON.stringify({ 
+                amount,
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const { transferId } = await response.json();
+        
+        document.getElementById('transfer-id').innerHTML = `Transfer ID: ${transferId}`;
+    };
+
+
+    $('#plaid-button').on('click', function(e) { handler.open(); });
+    $('#authorize-transfer').on('click', function(e) { authorizeTransaction(); });
+    $('#create-transfer').on('click', function(e) { createTransaction(); });
+})(jQuery);
+</script>
+
+<h1>Plaid Transfer Workshop!</h1>
+<p id="access-token">Access Token: </p>
+<p id="account-id">Account ID: </p>
+<p id="authorization-id">Authorization ID: </p>
+<p id="decision">Decision: </p>
+<p id="decision-rationale">Decision Rationale: </p>
+<p id="transfer-id">Transfer ID: </p>
+<button id='plaid-button'>Link your account with Plaid!</button>
+<br>
+<br>
+<label for="amount">Amount: </label>
+<input type="text" id="amount" name="amount">
+<br>
+<button id='authorize-transfer'>Authorize Transfer!</button>
+<button id='create-transfer'>Create Transfer!</button>
