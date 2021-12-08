@@ -1,4 +1,4 @@
-# Plaid Customer Engineering Offsite Demo
+# Transfer Demo
 
 ## Local Development
 
